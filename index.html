@@ -10,89 +10,178 @@ header{background:#0b4f6c;color:white;padding:15px;display:flex;align-items:cent
 header img{height:50px;}
 header h1{font-size:20px;margin:0;}
 main{padding:20px;}
+#viewControls{margin-bottom:15px;}
+button{padding:6px 12px;margin-right:5px;border:none;border-radius:4px;background:#0b4f6c;color:white;cursor:pointer;}
 .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
-.day{background:white;border-radius:6px;min-height:120px;padding:5px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
-.day h3{margin:0;font-size:14px;background:#eaeaea;padding:3px;border-radius:4px;text-align:center;}
-.event{background:#4caf50;color:white;font-size:12px;padding:3px;border-radius:4px;margin-top:4px;}
+.day{background:white;border-radius:6px;padding:5px;min-height:600px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
+.day h3{text-align:center;font-size:14px;background:#eaeaea;padding:3px;border-radius:4px;margin:0;}
+.event{background:#4caf50;color:white;font-size:12px;padding:2px 4px;border-radius:4px;margin-top:2px;cursor:pointer;}
 .occupied{background:#ff9800;}
 footer{text-align:center;font-size:12px;color:#666;padding:10px;}
-button{padding:8px 12px;border:none;border-radius:4px;background:#0b4f6c;color:white;cursor:pointer;}
 dialog{border:none;border-radius:8px;padding:20px;}
 dialog input,dialog select{width:100%;margin-bottom:10px;padding:6px;}
+#timeLabels{display:grid;grid-template-rows:repeat(20,30px);margin-right:5px;text-align:right;font-size:12px;}
+.weekview{display:flex;gap:5px;}
+.weekday{flex:1;background:white;border-radius:6px;min-height:600px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
+.weekday h4{text-align:center;font-size:14px;background:#eaeaea;padding:3px;border-radius:4px;margin:0;}
+.block{height:28px;margin:1px 0;padding:2px 4px;border-radius:4px;color:white;font-size:11px;cursor:pointer;}
 </style>
 </head>
 <body>
 <header>
 <img src="logo.png" alt="Logo Institucional">
-<h1>Agenda de Apoderados<br>Liceo Bicentenario Nuestra Señora de Guadalupe</h1>
+<h1>Atención a Apoderados<br>Liceo Bicentenario Nuestra Señora de Guadalupe</h1>
 </header>
+
 <main>
+<div id="viewControls">
+<button onclick="setView('month')">Vista Mes</button>
+<button onclick="setView('week')">Vista Semana</button>
+<button onclick="setView('day')">Vista Día</button>
 <button onclick="openDialog()">➕ Agregar Cita (Administración)</button>
-<div class="calendar" id="calendar"></div>
+</div>
+
+<div id="calendar" class="calendar"></div>
 </main>
+
 <dialog id="dialog">
 <h3>Nueva cita</h3>
 <input type="date" id="fecha"/>
 <input type="time" id="hora"/>
 <input type="text" id="docente" placeholder="Docente"/>
 <input type="text" id="curso" placeholder="Curso"/>
+<input type="text" id="alumno" placeholder="Nombre del Alumno"/>
+<input type="text" id="apoderado" placeholder="Nombre del Apoderado"/>
 <button onclick="guardar()">Guardar</button>
 <button onclick="closeDialog()">Cancelar</button>
 </dialog>
+
 <footer>
 Todos los derechos reservados – NSG 2026 | Por Franco.
 </footer>
 
 <script>
-// URL de tu Web App de Google Sheets
+// Reemplaza con tu URL del Web App de Google Sheets
 const SHEET_URL = "https://script.google.com/macros/s/AKfycbzqxhIh-DJdnrjn4mspn69dkb1dTJwGW-_Qu0I2nh1EdFFWPGEcBBaq4P9DZU9Brz7b/exec";
 
-const calendar = document.getElementById('calendar');
 let citas = [];
+let view = 'month';
+
+const calendar = document.getElementById('calendar');
 
 async function cargarCitas(){
-  const response = await fetch(`${SHEET_URL}?action=get`);
-  citas = await response.json();
+  try {
+    const response = await fetch(`${SHEET_URL}?action=get`);
+    citas = await response.json();
+    renderCalendar();
+  } catch(e) {
+    console.error("Error cargando citas:", e);
+  }
+}
+
+function setView(v){
+  view = v;
   renderCalendar();
 }
 
+// ------------------- RENDER CALENDAR -------------------
 function renderCalendar(){
   calendar.innerHTML='';
   const today = new Date();
-  today.setDate(1);
+  if(view==='month') renderMonthView(today);
+  if(view==='week') renderWeekView(today);
+  if(view==='day') renderDayView(today);
+}
+
+// --------------- MONTH VIEW ----------------
+function renderMonthView(today){
   const month = today.getMonth();
   const year = today.getFullYear();
-  const firstDay = today.getDay();
-  const daysInMonth = new Date(year, month+1, 0).getDate();
-
+  const firstDay = new Date(year, month,1).getDay();
+  const daysInMonth = new Date(year, month+1,0).getDate();
+  calendar.className='calendar';
   for(let i=0;i<firstDay;i++) calendar.appendChild(document.createElement('div'));
-
-  for(let d=1;d<=daysInMonth;d++){
-    const dayDiv = document.createElement('div');
+  for(let d=1; d<=daysInMonth; d++){
+    const dayDiv=document.createElement('div');
     dayDiv.className='day';
     dayDiv.innerHTML=`<h3>${d}</h3>`;
-
-    citas.filter(c => new Date(c.fecha).getDate()===d)
+    citas.filter(c => new Date(c.fecha).getDate()===d && new Date(c.fecha).getMonth()===month)
          .forEach(c=>{
            const ev=document.createElement('div');
            ev.className='event occupied';
            ev.textContent=`${c.hora} – Ocupado`;
+           ev.title = `Alumno: ${c.alumno}\nApoderado: ${c.apoderado}\nDocente: ${c.docente}\nCurso: ${c.curso}`;
            dayDiv.appendChild(ev);
          });
-
     calendar.appendChild(dayDiv);
   }
 }
 
+// --------------- WEEK VIEW ----------------
+function renderWeekView(today){
+  calendar.className='weekview';
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - today.getDay());
+  for(let i=0;i<7;i++){
+    const day = new Date(weekStart);
+    day.setDate(weekStart.getDate()+i);
+    const wd=document.createElement('div');
+    wd.className='weekday';
+    wd.innerHTML=`<h4>${day.toLocaleDateString('es-CL',{weekday:'long',day:'numeric'})}</h4>`;
+    // Bloques de 30 min desde 08:00 a 18:00
+    for(let h=8;h<18;h++){
+      for(let m=0;m<60;m+=30){
+        const block=document.createElement('div');
+        block.className='block';
+        block.dataset.time=`${('0'+h).slice(-2)}:${('0'+m).slice(-2)}`;
+        const cita = citas.find(c => c.fecha===day.toISOString().split('T')[0] && c.hora===block.dataset.time);
+        if(cita){
+          block.className+=' occupied';
+          block.textContent=cita.hora;
+          block.title = `Alumno: ${cita.alumno}\nApoderado: ${cita.apoderado}\nDocente: ${cita.docente}\nCurso: ${cita.curso}`;
+        }
+        wd.appendChild(block);
+      }
+    }
+    calendar.appendChild(wd);
+  }
+}
+
+// --------------- DAY VIEW ----------------
+function renderDayView(today){
+  calendar.className='weekview';
+  const wd=document.createElement('div');
+  wd.className='weekday';
+  wd.innerHTML=`<h4>${today.toLocaleDateString('es-CL',{weekday:'long',day:'numeric'})}</h4>`;
+  for(let h=8;h<18;h++){
+    for(let m=0;m<60;m+=30){
+      const block=document.createElement('div');
+      block.className='block';
+      block.dataset.time=`${('0'+h).slice(-2)}:${('0'+m).slice(-2)}`;
+      const cita = citas.find(c => c.fecha===today.toISOString().split('T')[0] && c.hora===block.dataset.time);
+      if(cita){
+        block.className+=' occupied';
+        block.textContent=cita.hora;
+        block.title = `Alumno: ${cita.alumno}\nApoderado: ${cita.apoderado}\nDocente: ${cita.docente}\nCurso: ${cita.curso}`;
+      }
+      wd.appendChild(block);
+    }
+  }
+  calendar.appendChild(wd);
+}
+
+// ---------------- DIALOG ----------------
 function openDialog(){ document.getElementById('dialog').showModal(); }
 function closeDialog(){ document.getElementById('dialog').close(); }
 
 async function guardar(){
-  const fecha=document.getElementById('fecha').value;
-  const hora=document.getElementById('hora').value;
-  const docente=document.getElementById('docente').value;
-  const curso=document.getElementById('curso').value;
-  await fetch(`${SHEET_URL}?action=add&fecha=${fecha}&hora=${hora}&docente=${docente}&curso=${curso}&estado=Ocupado`);
+  const fecha = document.getElementById('fecha').value;
+  const hora = document.getElementById('hora').value;
+  const docente = document.getElementById('docente').value;
+  const curso = document.getElementById('curso').value;
+  const alumno = document.getElementById('alumno').value;
+  const apoderado = document.getElementById('apoderado').value;
+  await fetch(`${SHEET_URL}?action=add&fecha=${fecha}&hora=${hora}&docente=${docente}&curso=${curso}&alumno=${alumno}&apoderado=${apoderado}&estado=Ocupado`);
   closeDialog();
   cargarCitas();
 }
