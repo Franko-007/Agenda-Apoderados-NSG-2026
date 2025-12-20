@@ -15,12 +15,10 @@ button{padding:6px 12px;margin-right:5px;border:none;border-radius:4px;backgroun
 .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
 .day{background:white;border-radius:6px;padding:5px;min-height:600px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
 .day h3{text-align:center;font-size:14px;background:#eaeaea;padding:3px;border-radius:4px;margin:0;}
-.event{background:#4caf50;color:white;font-size:12px;padding:2px 4px;border-radius:4px;margin-top:2px;cursor:pointer;}
-.occupied{background:#ff9800;}
+.event{color:white;font-size:12px;padding:2px 4px;border-radius:4px;margin-top:2px;cursor:pointer;}
 footer{text-align:center;font-size:12px;color:#666;padding:10px;}
 dialog{border:none;border-radius:8px;padding:20px;}
 dialog input,dialog select{width:100%;margin-bottom:10px;padding:6px;}
-#timeLabels{display:grid;grid-template-rows:repeat(20,30px);margin-right:5px;text-align:right;font-size:12px;}
 .weekview{display:flex;gap:5px;}
 .weekday{flex:1;background:white;border-radius:6px;min-height:600px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
 .weekday h4{text-align:center;font-size:14px;background:#eaeaea;padding:3px;border-radius:4px;margin:0;}
@@ -61,14 +59,26 @@ Todos los derechos reservados – NSG 2026 | Por Franco.
 </footer>
 
 <script>
-// Reemplaza con tu URL del Web App de Google Sheets
+// URL del Web App de Google Sheets
 const SHEET_URL = "https://script.google.com/macros/s/AKfycby6YisLVdrmltjB8Bn6g6sTFetq1enRYAXlioWtfdMTeZlX9IGRmdPAjBc7kMaVnVl8/exec";
 
 let citas = [];
 let view = 'month';
-
 const calendar = document.getElementById('calendar');
 
+// Colores para docentes, asigna uno distinto a cada docente automáticamente
+const colors = ["#4caf50","#ff9800","#2196f3","#9c27b0","#f44336","#3f51b5","#00bcd4","#e91e63","#ff5722"];
+const docenteColors = {};
+
+// Función para asignar color a cada docente
+function getColor(docente){
+  if(docenteColors[docente]) return docenteColors[docente];
+  const color = colors[Object.keys(docenteColors).length % colors.length];
+  docenteColors[docente] = color;
+  return color;
+}
+
+// Cargar citas desde Google Sheets
 async function cargarCitas(){
   try {
     const response = await fetch(`${SHEET_URL}?action=get`);
@@ -76,6 +86,7 @@ async function cargarCitas(){
     renderCalendar();
   } catch(e) {
     console.error("Error cargando citas:", e);
+    alert("No se pudieron cargar las citas. Verifica la URL del Web App.");
   }
 }
 
@@ -108,8 +119,9 @@ function renderMonthView(today){
     citas.filter(c => new Date(c.fecha).getDate()===d && new Date(c.fecha).getMonth()===month)
          .forEach(c=>{
            const ev=document.createElement('div');
-           ev.className='event occupied';
-           ev.textContent=`${c.hora} – Ocupado`;
+           ev.className='event';
+           ev.style.backgroundColor = getColor(c.docente);
+           ev.textContent=`${c.hora} – ${c.docente}`;
            ev.title = `Alumno: ${c.alumno}\nApoderado: ${c.apoderado}\nDocente: ${c.docente}\nCurso: ${c.curso}`;
            dayDiv.appendChild(ev);
          });
@@ -128,7 +140,6 @@ function renderWeekView(today){
     const wd=document.createElement('div');
     wd.className='weekday';
     wd.innerHTML=`<h4>${day.toLocaleDateString('es-CL',{weekday:'long',day:'numeric'})}</h4>`;
-    // Bloques de 30 min desde 08:00 a 18:00
     for(let h=8;h<18;h++){
       for(let m=0;m<60;m+=30){
         const block=document.createElement('div');
@@ -136,8 +147,8 @@ function renderWeekView(today){
         block.dataset.time=`${('0'+h).slice(-2)}:${('0'+m).slice(-2)}`;
         const cita = citas.find(c => c.fecha===day.toISOString().split('T')[0] && c.hora===block.dataset.time);
         if(cita){
-          block.className+=' occupied';
-          block.textContent=cita.hora;
+          block.style.backgroundColor = getColor(cita.docente);
+          block.textContent=cita.hora+" "+cita.docente;
           block.title = `Alumno: ${cita.alumno}\nApoderado: ${cita.apoderado}\nDocente: ${cita.docente}\nCurso: ${cita.curso}`;
         }
         wd.appendChild(block);
@@ -160,8 +171,8 @@ function renderDayView(today){
       block.dataset.time=`${('0'+h).slice(-2)}:${('0'+m).slice(-2)}`;
       const cita = citas.find(c => c.fecha===today.toISOString().split('T')[0] && c.hora===block.dataset.time);
       if(cita){
-        block.className+=' occupied';
-        block.textContent=cita.hora;
+        block.style.backgroundColor = getColor(cita.docente);
+        block.textContent=cita.hora+" "+cita.docente;
         block.title = `Alumno: ${cita.alumno}\nApoderado: ${cita.apoderado}\nDocente: ${cita.docente}\nCurso: ${cita.curso}`;
       }
       wd.appendChild(block);
@@ -177,14 +188,29 @@ function closeDialog(){ document.getElementById('dialog').close(); }
 async function guardar(){
   const fecha = document.getElementById('fecha').value;
   const hora = document.getElementById('hora').value;
-  const docente = document.getElementById('docente').value;
-  const curso = document.getElementById('curso').value;
-  const alumno = document.getElementById('alumno').value;
-  const apoderado = document.getElementById('apoderado').value;
+  const docente = document.getElementById('docente').value.trim();
+  const curso = document.getElementById('curso').value.trim();
+  const alumno = document.getElementById('alumno').value.trim();
+  const apoderado = document.getElementById('apoderado').value.trim();
 
-  await fetch(`${SHEET_URL}?action=add&fecha=${fecha}&hora=${hora}&docente=${docente}&curso=${curso}&alumno=${alumno}&apoderado=${apoderado}&estado=Ocupado`);
-  closeDialog();
-  cargarCitas();
+  if(!fecha||!hora||!docente||!curso||!alumno||!apoderado){
+    alert("Por favor, completa todos los campos.");
+    return;
+  }
+
+  try{
+    const resp = await fetch(`${SHEET_URL}?action=add&fecha=${fecha}&hora=${hora}&docente=${docente}&curso=${curso}&alumno=${alumno}&apoderado=${apoderado}&estado=Ocupado`);
+    const text = await resp.text();
+    if(text==="ok"){
+      closeDialog();
+      cargarCitas();
+    } else {
+      alert("Error guardando la cita: "+text);
+    }
+  } catch(e){
+    console.error(e);
+    alert("No se pudo conectar con Google Sheets. Verifica la URL del Web App.");
+  }
 }
 
 cargarCitas();
