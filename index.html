@@ -6,33 +6,38 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f4f6f8;}
-header{background:#0b4f6c;color:white;padding:15px;display:flex;align-items:center;gap:15px;}
+header{background:#0b4f6c;color:white;padding:15px;display:flex;align-items:center;gap:15px;flex-wrap:wrap;}
 header img{height:50px;}
-header h1{font-size:20px;margin:0;}
+header h1{font-size:20px;margin:0;flex:1;}
 main{padding:20px;}
-#viewControls{margin-bottom:15px;}
+#viewControls{margin-bottom:15px;display:flex;flex-wrap:wrap;gap:5px;}
 button{padding:6px 12px;margin-right:5px;border:none;border-radius:4px;background:#0b4f6c;color:white;cursor:pointer;}
-.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
-.day{background:white;border-radius:6px;padding:5px;min-height:600px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
-.day h3{text-align:center;font-size:14px;background:#eaeaea;padding:3px;border-radius:4px;margin:0;}
-.event{color:white;font-size:12px;padding:2px 4px;border-radius:4px;margin-top:2px;cursor:pointer;}
+.calendar{display:grid;gap:5px;}
+.day, .month-box{background:white;border-radius:6px;padding:5px;min-height:100px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
+.day h3,.month-box h3{text-align:center;font-size:14px;background:#eaeaea;padding:3px;border-radius:4px;margin:0;}
+.event{color:white;font-size:12px;padding:2px 4px;border-radius:4px;margin-top:2px;cursor:pointer;display:block;}
 footer{text-align:center;font-size:12px;color:#666;padding:10px;}
 dialog{border:none;border-radius:8px;padding:20px;}
 dialog input,dialog select{width:100%;margin-bottom:10px;padding:6px;}
-.weekview{display:flex;gap:5px;}
+.weekview{display:flex;flex-wrap:wrap;gap:5px;}
 .weekday{flex:1;background:white;border-radius:6px;min-height:600px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
 .weekday h4{text-align:center;font-size:14px;background:#eaeaea;padding:3px;border-radius:4px;margin:0;}
 .block{height:28px;margin:1px 0;padding:2px 4px;border-radius:4px;color:white;font-size:11px;cursor:pointer;}
+#legend{margin-top:10px;display:flex;flex-wrap:wrap;gap:10px;}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:12px;}
+.legend-color{width:15px;height:15px;border-radius:3px;}
+@media(max-width:768px){.calendar{grid-template-columns:1fr !important;}.weekview{flex-direction:column;}.weekday{min-height:300px;}}
 </style>
 </head>
 <body>
 <header>
 <img src="logo.png" alt="Logo Institucional">
-<h1>Atención a Apoderados 2026<br>Liceo Bicentenario Nuestra Señora de Guadalupe</h1>
+<h1>Agenda de Atención a Apoderados<br>Liceo Bicentenario Nuestra Señora de Guadalupe</h1>
 </header>
 
 <main>
 <div id="viewControls">
+<button onclick="setView('year')">Vista Año</button>
 <button onclick="setView('month')">Vista Mes</button>
 <button onclick="setView('week')">Vista Semana</button>
 <button onclick="setView('day')">Vista Día</button>
@@ -40,6 +45,7 @@ dialog input,dialog select{width:100%;margin-bottom:10px;padding:6px;}
 </div>
 
 <div id="calendar" class="calendar"></div>
+<div id="legend"></div>
 </main>
 
 <dialog id="dialog">
@@ -59,18 +65,16 @@ Todos los derechos reservados – NSG 2026 | Por Franco.
 </footer>
 
 <script>
-// URL del Web App de Google Sheets
 const SHEET_URL = "https://script.google.com/macros/s/AKfycby6YisLVdrmltjB8Bn6g6sTFetq1enRYAXlioWtfdMTeZlX9IGRmdPAjBc7kMaVnVl8/exec";
 
 let citas = [];
 let view = 'month';
 const calendar = document.getElementById('calendar');
+const legendDiv = document.getElementById('legend');
 
-// Colores para docentes, asigna uno distinto a cada docente automáticamente
 const colors = ["#4caf50","#ff9800","#2196f3","#9c27b0","#f44336","#3f51b5","#00bcd4","#e91e63","#ff5722"];
 const docenteColors = {};
 
-// Función para asignar color a cada docente
 function getColor(docente){
   if(docenteColors[docente]) return docenteColors[docente];
   const color = colors[Object.keys(docenteColors).length % colors.length];
@@ -78,12 +82,22 @@ function getColor(docente){
   return color;
 }
 
-// Cargar citas desde Google Sheets
+function renderLegend(){
+  legendDiv.innerHTML = '';
+  Object.keys(docenteColors).forEach(d=>{
+    const item = document.createElement('div');
+    item.className='legend-item';
+    item.innerHTML = `<div class="legend-color" style="background:${docenteColors[d]}"></div>${d}`;
+    legendDiv.appendChild(item);
+  });
+}
+
 async function cargarCitas(){
   try {
     const response = await fetch(`${SHEET_URL}?action=get`);
     citas = await response.json();
     renderCalendar();
+    renderLegend();
   } catch(e) {
     console.error("Error cargando citas:", e);
     alert("No se pudieron cargar las citas. Verifica la URL del Web App.");
@@ -99,9 +113,36 @@ function setView(v){
 function renderCalendar(){
   calendar.innerHTML='';
   const today = new Date();
+  if(view==='year') renderYearView(today);
   if(view==='month') renderMonthView(today);
   if(view==='week') renderWeekView(today);
   if(view==='day') renderDayView(today);
+}
+
+// ---------------- YEAR VIEW ----------------
+function renderYearView(today){
+  calendar.className='calendar';
+  calendar.style.gridTemplateColumns='repeat(4,1fr)';
+  for(let m=0;m<12;m++){
+    const monthBox=document.createElement('div');
+    monthBox.className='month-box';
+    monthBox.innerHTML=`<h3>${new Date(today.getFullYear(),m,1).toLocaleDateString('es-CL',{month:'long'})}</h3>`;
+    const daysInMonth = new Date(today.getFullYear(), m+1,0).getDate();
+    for(let d=1;d<=daysInMonth;d++){
+      const dayDiv=document.createElement('div');
+      const cita = citas.filter(c => new Date(c.fecha).getDate()===d && new Date(c.fecha).getMonth()===m);
+      cita.forEach(c=>{
+        const ev=document.createElement('div');
+        ev.className='event';
+        ev.style.backgroundColor=getColor(c.docente);
+        ev.textContent=`${c.hora} ${c.docente}`;
+        ev.title = `Alumno: ${c.alumno}\nApoderado: ${c.apoderado}\nDocente: ${c.docente}\nCurso: ${c.curso}`;
+        dayDiv.appendChild(ev);
+      });
+      monthBox.appendChild(dayDiv);
+    }
+    calendar.appendChild(monthBox);
+  }
 }
 
 // --------------- MONTH VIEW ----------------
@@ -111,6 +152,7 @@ function renderMonthView(today){
   const firstDay = new Date(year, month,1).getDay();
   const daysInMonth = new Date(year, month+1,0).getDate();
   calendar.className='calendar';
+  calendar.style.gridTemplateColumns='repeat(7,1fr)';
   for(let i=0;i<firstDay;i++) calendar.appendChild(document.createElement('div'));
   for(let d=1; d<=daysInMonth; d++){
     const dayDiv=document.createElement('div');
@@ -129,14 +171,17 @@ function renderMonthView(today){
   }
 }
 
-// --------------- WEEK VIEW ----------------
-function renderWeekView(today){
+// --------------- WEEK & DAY VIEW ----------------
+function renderWeekView(today){ renderTimeBlocksView(today,7); }
+function renderDayView(today){ renderTimeBlocksView(today,1); }
+
+function renderTimeBlocksView(today, daysCount){
   calendar.className='weekview';
-  const weekStart = new Date(today);
-  weekStart.setDate(today.getDate() - today.getDay());
-  for(let i=0;i<7;i++){
-    const day = new Date(weekStart);
-    day.setDate(weekStart.getDate()+i);
+  const start = new Date(today);
+  if(daysCount===7) start.setDate(today.getDate() - today.getDay());
+  for(let i=0;i<daysCount;i++){
+    const day = new Date(start);
+    day.setDate(start.getDate()+i);
     const wd=document.createElement('div');
     wd.className='weekday';
     wd.innerHTML=`<h4>${day.toLocaleDateString('es-CL',{weekday:'long',day:'numeric'})}</h4>`;
@@ -145,40 +190,23 @@ function renderWeekView(today){
         const block=document.createElement('div');
         block.className='block';
         block.dataset.time=`${('0'+h).slice(-2)}:${('0'+m).slice(-2)}`;
-        const cita = citas.find(c => c.fecha===day.toISOString().split('T')[0] && c.hora===block.dataset.time);
+        block.dataset.date = day.toISOString().split('T')[0];
+        const cita = citas.find(c => c.fecha===block.dataset.date && c.hora===block.dataset.time);
         if(cita){
           block.style.backgroundColor = getColor(cita.docente);
           block.textContent=cita.hora+" "+cita.docente;
           block.title = `Alumno: ${cita.alumno}\nApoderado: ${cita.apoderado}\nDocente: ${cita.docente}\nCurso: ${cita.curso}`;
         }
+        block.addEventListener('click',()=>{
+          document.getElementById('fecha').value = block.dataset.date;
+          document.getElementById('hora').value = block.dataset.time;
+          openDialog();
+        });
         wd.appendChild(block);
       }
     }
     calendar.appendChild(wd);
   }
-}
-
-// --------------- DAY VIEW ----------------
-function renderDayView(today){
-  calendar.className='weekview';
-  const wd=document.createElement('div');
-  wd.className='weekday';
-  wd.innerHTML=`<h4>${today.toLocaleDateString('es-CL',{weekday:'long',day:'numeric'})}</h4>`;
-  for(let h=8;h<18;h++){
-    for(let m=0;m<60;m+=30){
-      const block=document.createElement('div');
-      block.className='block';
-      block.dataset.time=`${('0'+h).slice(-2)}:${('0'+m).slice(-2)}`;
-      const cita = citas.find(c => c.fecha===today.toISOString().split('T')[0] && c.hora===block.dataset.time);
-      if(cita){
-        block.style.backgroundColor = getColor(cita.docente);
-        block.textContent=cita.hora+" "+cita.docente;
-        block.title = `Alumno: ${cita.alumno}\nApoderado: ${cita.apoderado}\nDocente: ${cita.docente}\nCurso: ${cita.curso}`;
-      }
-      wd.appendChild(block);
-    }
-  }
-  calendar.appendChild(wd);
 }
 
 // ---------------- DIALOG ----------------
