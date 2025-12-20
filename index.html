@@ -181,6 +181,7 @@ async function guardar(){
   const curso = document.getElementById('curso').value;
   const alumno = document.getElementById('alumno').value;
   const apoderado = document.getElementById('apoderado').value;
+
   await fetch(`${SHEET_URL}?action=add&fecha=${fecha}&hora=${hora}&docente=${docente}&curso=${curso}&alumno=${alumno}&apoderado=${apoderado}&estado=Ocupado`);
   closeDialog();
   cargarCitas();
