@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Agenda Apoderados – Liceo Bicentenario NSG</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{font-family:Arial,sans-serif;margin:0;background:#f4f6f8;}
+header{background:#0b4f6c;color:white;padding:15px;display:flex;align-items:center;gap:15px;}
+header img{height:50px;}
+header h1{font-size:20px;margin:0;}
+main{padding:20px;}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
+.day{background:white;border-radius:6px;min-height:120px;padding:5px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
+.day h3{margin:0;font-size:14px;background:#eaeaea;padding:3px;border-radius:4px;text-align:center;}
+.event{background:#4caf50;color:white;font-size:12px;padding:3px;border-radius:4px;margin-top:4px;}
+.occupied{background:#ff9800;}
+footer{text-align:center;font-size:12px;color:#666;padding:10px;}
+button{padding:8px 12px;border:none;border-radius:4px;background:#0b4f6c;color:white;cursor:pointer;}
+dialog{border:none;border-radius:8px;padding:20px;}
+dialog input,dialog select{width:100%;margin-bottom:10px;padding:6px;}
+</style>
+</head>
+<body>
+<header>
+<img src="logo.png" alt="Logo Institucional">
+<h1>Agenda de Apoderados<br>Liceo Bicentenario Nuestra Señora de Guadalupe</h1>
+</header>
+<main>
+<button onclick="openDialog()">➕ Agregar Cita (Administración)</button>
+<div class="calendar" id="calendar"></div>
+</main>
+<dialog id="dialog">
+<h3>Nueva cita</h3>
+<input type="date" id="fecha"/>
+<input type="time" id="hora"/>
+<input type="text" id="docente" placeholder="Docente"/>
+<input type="text" id="curso" placeholder="Curso"/>
+<button onclick="guardar()">Guardar</button>
+<button onclick="closeDialog()">Cancelar</button>
+</dialog>
+<footer>
+Todos los derechos reservados – NSG 2026 | Por Franco.
+</footer>
+
+<script>
+// URL de tu Web App de Google Sheets
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbzqxhIh-DJdnrjn4mspn69dkb1dTJwGW-_Qu0I2nh1EdFFWPGEcBBaq4P9DZU9Brz7b/exec";
+
+const calendar = document.getElementById('calendar');
+let citas = [];
+
+async function cargarCitas(){
+  const response = await fetch(`${SHEET_URL}?action=get`);
+  citas = await response.json();
+  renderCalendar();
+}
+
+function renderCalendar(){
+  calendar.innerHTML='';
+  const today = new Date();
+  today.setDate(1);
+  const month = today.getMonth();
+  const year = today.getFullYear();
+  const firstDay = today.getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+
+  for(let i=0;i<firstDay;i++) calendar.appendChild(document.createElement('div'));
+
+  for(let d=1;d<=daysInMonth;d++){
+    const dayDiv = document.createElement('div');
+    dayDiv.className='day';
+    dayDiv.innerHTML=`<h3>${d}</h3>`;
+
+    citas.filter(c => new Date(c.fecha).getDate()===d)
+         .forEach(c=>{
+           const ev=document.createElement('div');
+           ev.className='event occupied';
+           ev.textContent=`${c.hora} – Ocupado`;
+           dayDiv.appendChild(ev);
+         });
+
+    calendar.appendChild(dayDiv);
+  }
+}
+
+function openDialog(){ document.getElementById('dialog').showModal(); }
+function closeDialog(){ document.getElementById('dialog').close(); }
+
+async function guardar(){
+  const fecha=document.getElementById('fecha').value;
+  const hora=document.getElementById('hora').value;
+  const docente=document.getElementById('docente').value;
+  const curso=document.getElementById('curso').value;
+  await fetch(`${SHEET_URL}?action=add&fecha=${fecha}&hora=${hora}&docente=${docente}&curso=${curso}&estado=Ocupado`);
+  closeDialog();
+  cargarCitas();
+}
+
+cargarCitas();
+setInterval(cargarCitas,10000); // Actualiza cada 10s
+</script>
+</body>
+</html>
