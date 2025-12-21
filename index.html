@@ -92,6 +92,17 @@ select, button{
   cursor:pointer;
 }
 
+.feriado{
+  background:#ffe5e5 !important;
+  border:2px solid #d32f2f;
+}
+
+.feriado-label{
+  font-size:9px;
+  color:#b71c1c;
+  font-weight:bold;
+}
+
 #legend{
   margin-top:10px;
   display:flex;
@@ -208,19 +219,51 @@ const filterYear=document.getElementById("filterYear");
 const colors=["#1976d2","#388e3c","#f57c00","#7b1fa2","#c62828"];
 let docenteColors={};
 
-/* ---------- INIT ---------- */
+/* ================= FERIADOS CHILE AUTOMÁTICOS ================= */
+
+function calcularPascua(year){
+  const f=Math.floor;
+  const G=year%19;
+  const C=f(year/100);
+  const H=(C-f(C/4)-f((8*C+13)/25)+19*G+15)%30;
+  const I=H-f(H/28)*(1-f(29/(H+1))*f((21-G)/11));
+  const J=(year+f(year/4)+I+2-C+f(C/4))%7;
+  const L=I-J;
+  const month=3+f((L+40)/44);
+  const day=L+28-31*f(month/4);
+  return new Date(year,month-1,day);
+}
+
+function feriadosChile(year){
+  const pascua=calcularPascua(year);
+  return {
+    [`${year}-01-01`]:"Año Nuevo",
+    [`${year}-05-01`]:"Día del Trabajador",
+    [`${year}-05-21`]:"Glorias Navales",
+    [`${year}-07-16`]:"Virgen del Carmen",
+    [`${year}-08-15`]:"Asunción de la Virgen",
+    [`${year}-09-18`]:"Independencia Nacional",
+    [`${year}-09-19`]:"Glorias del Ejército",
+    [`${year}-10-12`]:"Encuentro de Dos Mundos",
+    [`${year}-10-31`]:"Iglesias Evangélicas",
+    [`${year}-11-01`]:"Todos los Santos",
+    [`${year}-12-08`]:"Inmaculada Concepción",
+    [`${year}-12-25`]:"Navidad",
+    [new Date(pascua.getTime()-2*86400000).toISOString().slice(0,10)]:"Viernes Santo",
+    [new Date(pascua.getTime()-1*86400000).toISOString().slice(0,10)]:"Sábado Santo"
+  };
+}
+
+/* ================= INIT ================= */
+
 function initFilters(){
   filterDocente.innerHTML='<option value="">Todos</option>';
 
-  filterMes.innerHTML='';
-  for(let i=0;i<12;i++){
+  for(let i=0;i<12;i++)
     filterMes.innerHTML+=`<option value="${i}">${new Date(0,i).toLocaleString("es",{month:"long"})}</option>`;
-  }
 
-  filterYear.innerHTML='';
-  for(let y=currentDate.getFullYear()-3;y<=currentDate.getFullYear()+3;y++){
+  for(let y=currentDate.getFullYear()-3;y<=currentDate.getFullYear()+3;y++)
     filterYear.innerHTML+=`<option value="${y}">${y}</option>`;
-  }
 
   filterMes.value=currentDate.getMonth();
   filterYear.value=currentDate.getFullYear();
@@ -231,24 +274,20 @@ function initFilters(){
 }
 
 function syncDate(){
-  currentDate=new Date(
-    parseInt(filterYear.value),
-    parseInt(filterMes.value),
-    1
-  );
+  currentDate=new Date(filterYear.value,filterMes.value,1);
   renderCalendar();
 }
 
-/* ---------- DATA ---------- */
+/* ================= DATA ================= */
+
 async function cargarCitas(){
   const r=await fetch(SHEET_URL+"?action=get");
   citas=await r.json();
 
   docenteColors={};
   citas.forEach(c=>{
-    if(!docenteColors[c.docente]){
+    if(!docenteColors[c.docente])
       docenteColors[c.docente]=colors[Object.keys(docenteColors).length%colors.length];
-    }
   });
 
   renderFiltroDocentes();
@@ -261,12 +300,13 @@ function renderFiltroDocentes(){
   const sel=filterDocente.value;
   filterDocente.innerHTML='<option value="">Todos</option>';
   Object.keys(docenteColors).forEach(d=>{
-    filterDocente.innerHTML+=`<option value="${d}">${d}</option>`;
+    filterDocente.innerHTML+=`<option>${d}</option>`;
   });
   filterDocente.value=sel;
 }
 
-/* ---------- CALENDAR ---------- */
+/* ================= CALENDAR ================= */
+
 function prevMonth(){currentDate.setMonth(currentDate.getMonth()-1);syncUI();}
 function nextMonth(){currentDate.setMonth(currentDate.getMonth()+1);syncUI();}
 function syncUI(){
@@ -279,13 +319,14 @@ function renderCalendar(){
   calendar.innerHTML="";
   const m=currentDate.getMonth();
   const y=currentDate.getFullYear();
+  const feriados=feriadosChile(y);
 
   monthLabel.textContent=currentDate.toLocaleString("es",{month:"long",year:"numeric"});
 
   const grid=document.createElement("div");
   grid.className="month-grid";
 
-  const first=new Date(y,m,1).getDay();
+  let first=(new Date(y,m,1).getDay()+6)%7; // LUNES primero
   const days=new Date(y,m+1,0).getDate();
 
   for(let i=0;i<first;i++) grid.appendChild(document.createElement("div"));
@@ -296,6 +337,11 @@ function renderCalendar(){
     cell.className="day";
     cell.innerHTML=`<h3>${d}</h3>`;
     cell.onclick=()=>openDialog(date);
+
+    if(feriados[date]){
+      cell.classList.add("feriado");
+      cell.innerHTML+=`<div class="feriado-label">${feriados[date]}</div>`;
+    }
 
     citas.filter(c=>c.fecha===date && (!filterDocente.value||c.docente===filterDocente.value))
       .forEach(c=>{
@@ -313,11 +359,12 @@ function renderCalendar(){
   calendar.appendChild(grid);
 }
 
-/* ---------- DIALOG ---------- */
-function openDialog(fecha,hora="08:00",c=null){
+/* ================= DIALOG ================= */
+
+function openDialog(f,h="08:00",c=null){
   citaId.value=c?.id||"";
-  fecha.value=fecha;
-  hora.value=hora;
+  fecha.value=f;
+  hora.value=h;
   docente.value=c?.docente||"";
   curso.value=c?.curso||"";
   alumno.value=c?.alumno||"";
@@ -327,7 +374,8 @@ function openDialog(fecha,hora="08:00",c=null){
 
 function closeDialog(){dialog.close();}
 
-/* ---------- SAVE / DELETE ---------- */
+/* ================= SAVE / DELETE ================= */
+
 async function guardar(){
   const params=new URLSearchParams({
     action:citaId.value?"edit":"add",
@@ -349,14 +397,12 @@ async function eliminar(){
   closeDialog();cargarCitas();
 }
 
-/* ---------- CHART ---------- */
+/* ================= CHART ================= */
+
 function renderLegend(){
   legendDiv.innerHTML="";
   Object.keys(docenteColors).forEach(d=>{
-    legendDiv.innerHTML+=`
-      <div class="legend-item">
-        <div class="legend-color" style="background:${docenteColors[d]}"></div>${d}
-      </div>`;
+    legendDiv.innerHTML+=`<div class="legend-item"><div class="legend-color" style="background:${docenteColors[d]}"></div>${d}</div>`;
   });
 }
 
@@ -368,13 +414,14 @@ function renderChart(){
     data:{
       labels:Object.keys(docenteColors),
       datasets:[{data:Object.keys(docenteColors).map(d=>citas.filter(c=>c.docente===d).length),
-        backgroundColor:Object.values(docenteColors)}]
+      backgroundColor:Object.values(docenteColors)}]
     },
     options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
   });
 }
 
-/* ---------- START ---------- */
+/* ================= START ================= */
+
 initFilters();
 cargarCitas();
 </script>
