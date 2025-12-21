@@ -18,24 +18,34 @@
         .day-name { font-weight: bold; background: #013b7a; color: white; padding: 10px 0; border-radius: 4px; font-size: 12px; text-transform: uppercase; }
         .day{ background:white; border-radius:6px; padding:4px; min-height:120px; box-shadow:0 1px 3px rgba(0,0,0,.15); position:relative; font-size:11px; cursor:pointer; }
         .day h3{ text-align:right; font-size:11px; margin:0; }
-        .event{ position:relative; margin-top:2px; font-size:10px; padding:4px; border-radius:3px; color:white; overflow:hidden; cursor:pointer; text-align:left; border-left: 4px solid rgba(0,0,0,0.2); }
-        .event.asistio { background: #2e7d32 !important; border-left: 4px solid #1b5e20; }
-        .event.asistio::before { content: "✔ "; font-weight: bold; }
-        .event.no-asistio { background: #757575 !important; border-left: 4px solid #b71c1c; text-decoration: line-through; opacity: 0.8; }
-        .event.no-asistio::before { content: "✘ "; font-weight: bold; }
+        
+        .event{ position:relative; margin-top:2px; font-size:10px; padding:4px; border-radius:3px; color:white; overflow:hidden; cursor:pointer; text-align:left; border-left: 4px solid rgba(0,0,0,0.2); font-weight: bold; }
+        
+        .event.pendiente { background: #fbc02d !important; color: #333 !important; border-left: 4px solid #f9a825; }
+        .event.pendiente::before { content: "⏳ "; }
+        .event.asistio { background: #2e7d32 !important; color: white !important; border-left: 4px solid #1b5e20; }
+        .event.asistio::before { content: "✔ "; }
+        .event.no-asistio { background: #757575 !important; color: white !important; border-left: 4px solid #424242; text-decoration: line-through; opacity: 0.8; }
+        .event.no-asistio::before { content: "✘ "; }
+        
         .feriado{ background:#ffe5e5 !important; border:2px solid #d32f2f; }
         .feriado-label{ font-size:9px; color:#b71c1c; font-weight:bold; }
         #legend{ margin-top:10px; display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
         .legend-item{ display:flex; align-items:center; gap:5px; font-size:12px; }
         .legend-color{ width:14px; height:14px; border-radius:3px; }
         canvas{ margin-top:20px; background:white; border-radius:6px; padding:10px; max-width: 100%; }
-        dialog{ border:none; border-radius:8px; padding:20px; width: 320px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
-        dialog h3 { margin-top: 0; color: #013b7a; }
-        dialog label { display: block; text-align: left; font-size: 11px; margin-top: 10px; font-weight: bold; }
-        dialog input, dialog select{ width:100%; margin-bottom:5px; padding:8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        .btn-group { margin-top: 15px; display: flex; flex-direction: column; gap: 5px; }
-        .btn-save { background: #013b7a; color: white; cursor: pointer; }
-        .btn-delete { background: #c62828; color: white; cursor: pointer; }
+        
+        /* ESTILOS DIALOG / MODAL */
+        dialog{ border:none; border-radius:8px; padding:20px; width: 350px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        dialog h3 { margin-top: 0; color: #013b7a; text-align: center; }
+        dialog label { display: block; text-align: left; font-size: 12px; margin-top: 10px; font-weight: bold; color: #555; }
+        dialog input, dialog select{ width:100%; margin-bottom:5px; padding:10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        
+        .btn-group { margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
+        .btn-save { background: #013b7a; color: white; cursor: pointer; font-weight: bold; padding: 10px; }
+        .btn-delete { background: #c62828; color: white; cursor: pointer; font-weight: bold; padding: 10px; }
+        .btn-cancel { background: #eee; color: #333; cursor: pointer; padding: 10px; }
+        
         footer{ margin-top:20px; font-size:12px; padding-bottom: 20px;}
     </style>
 </head>
@@ -46,7 +56,7 @@
     </header>
     <main>
         <div id="viewControls">
-            <label>Docente:</label>
+            <label>Filtrar Docente:</label>
             <select id="filterDocente"></select>
             <label>Mes:</label>
             <select id="filterMes"></select>
@@ -65,24 +75,34 @@
         <dialog id="dialog">
             <h3>Gestionar Cita</h3>
             <input type="hidden" id="citaId">
+            
             <label>Fecha y Hora:</label>
             <input type="date" id="fecha">
             <input type="time" id="hora" step="1800">
-            <label>Información:</label>
-            <input type="text" id="docente" placeholder="Docente">
-            <input type="text" id="curso" placeholder="Curso">
-            <input type="text" id="alumno" placeholder="Alumno">
-            <input type="text" id="apoderado" placeholder="Apoderado">
+            
+            <label>Nombre del Docente:</label>
+            <input type="text" id="docente" placeholder="Ej: Peter V">
+            
+            <label>Curso:</label>
+            <input type="text" id="curso" placeholder="Ej: 1°m A">
+            
+            <label>Nombre del Alumno:</label>
+            <input type="text" id="alumno" placeholder="Ej: Juan Cerda">
+            
+            <label>Nombre del Apoderado/a:</label>
+            <input type="text" id="apoderado" placeholder="Ej: Juanita Parra">
+            
             <label>Estado de Asistencia:</label>
             <select id="estado">
                 <option value="Pendiente">Pendiente</option>
                 <option value="Asistió">Asistió ✅</option>
                 <option value="No Asistió">No Asistió ❌</option>
             </select>
+            
             <div class="btn-group">
                 <button id="btnGuardar" class="btn-save" onclick="guardar()">Guardar Cambios</button>
                 <button class="btn-delete" onclick="eliminar()">Eliminar Cita</button>
-                <button onclick="closeDialog()">Cancelar</button>
+                <button class="btn-cancel" onclick="closeDialog()">Cancelar</button>
             </div>
         </dialog>
     </main>
@@ -200,9 +220,8 @@
                 ev.className="event";
                 if(c.estado === "Asistió") ev.classList.add("asistio");
                 else if(c.estado === "No Asistió") ev.classList.add("no-asistio");
-                ev.style.background=docenteColors[c.docente] || "#999";
-                
-                // LÓGICA DE LIMPIEZA DE HORA PARA EVITAR EL CÓDIGO 1899
+                else ev.classList.add("pendiente");
+
                 let horaTxt = String(c.hora);
                 if(horaTxt.includes("T")) {
                     horaTxt = horaTxt.split("T")[1].substring(0,5);
@@ -210,7 +229,7 @@
                     horaTxt = horaTxt.substring(0,5);
                 }
 
-                ev.textContent=`${horaTxt} - ${c.alumno}`;
+                ev.textContent=`${horaTxt} - ${c.docente}`;
                 ev.onclick=e=>{e.stopPropagation();openDialog(c.fecha,c.hora,c);};
                 cell.appendChild(ev);
             });
@@ -222,12 +241,9 @@
     function openDialog(f,h="08:00",c=null){
         document.getElementById("citaId").value=c?.id||"";
         document.getElementById("fecha").value=f.includes("T") ? f.split("T")[0] : f;
-        
-        // Limpiamos la hora para el input del modal
         let horaInput = String(h);
         if(horaInput.includes("T")) horaInput = horaInput.split("T")[1].substring(0,5);
         document.getElementById("hora").value=horaInput;
-        
         document.getElementById("docente").value=c?.docente||"";
         document.getElementById("curso").value=c?.curso||"";
         document.getElementById("alumno").value=c?.alumno||"";
@@ -242,7 +258,6 @@
         const btn = document.getElementById("btnGuardar");
         btn.disabled = true;
         btn.textContent = "Guardando...";
-        
         const params=new URLSearchParams({
             action:document.getElementById("citaId").value?"edit":"add",
             id:document.getElementById("citaId").value,
@@ -254,7 +269,6 @@
             apoderado:document.getElementById("apoderado").value,
             estado:document.getElementById("estado").value
         });
-        
         try {
             await fetch(SHEET_URL+"?"+params, { mode: 'no-cors' });
             setTimeout(() => {
@@ -282,6 +296,9 @@
         Object.keys(docenteColors).forEach(d=>{
             legendDiv.innerHTML+=`<div class="legend-item"><div class="legend-color" style="background:${docenteColors[d]}"></div>${d}</div>`;
         });
+        legendDiv.innerHTML+=`<div class="legend-item"><div class="legend-color" style="background:#fbc02d; border:1px solid #f9a825"></div>Pendiente</div>`;
+        legendDiv.innerHTML+=`<div class="legend-item"><div class="legend-color" style="background:#2e7d32"></div>Asistió</div>`;
+        legendDiv.innerHTML+=`<div class="legend-item"><div class="legend-color" style="background:#757575"></div>No Asistió</div>`;
     }
 
     function renderChart(){
