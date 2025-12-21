@@ -17,7 +17,9 @@
         
         /* Estilos de la cuadrícula */
         .month-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
-        .day-name { font-weight: bold; background: #eee; padding: 10px 0; border-radius: 4px; font-size: 12px; text-transform: uppercase; }
+        
+        /* CAMBIO SOLICITADO: Fondo azul y letras blancas para los nombres de los días */
+        .day-name { font-weight: bold; background: #013b7a; color: white; padding: 10px 0; border-radius: 4px; font-size: 12px; text-transform: uppercase; }
         
         .day{ background:white; border-radius:6px; padding:4px; min-height:120px; box-shadow:0 1px 3px rgba(0,0,0,.15); position:relative; font-size:11px; cursor:pointer; }
         .day h3{ text-align:right; font-size:11px; margin:0; }
@@ -88,7 +90,6 @@
     const colors=["#1976d2","#388e3c","#f57c00","#7b1fa2","#c62828"];
     let docenteColors={};
 
-    // Días de la semana para la cabecera
     const diasSemana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
     function calcularPascua(year){
@@ -189,7 +190,6 @@
         const grid=document.createElement("div");
         grid.className="month-grid";
 
-        // 1. Agregar cabecera de días (L-D)
         diasSemana.forEach(dia => {
             const dayNameDiv = document.createElement("div");
             dayNameDiv.className = "day-name";
@@ -197,12 +197,10 @@
             grid.appendChild(dayNameDiv);
         });
 
-        // 2. Calcular espacios vacíos al inicio
         let first=(new Date(y,m,1).getDay()+6)%7;
         const days=new Date(y,m+1,0).getDate();
         for(let i=0;i<first;i++) grid.appendChild(document.createElement("div"));
 
-        // 3. Crear los días del mes
         for(let d=1;d<=days;d++){
             const dateStr=`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
             const cell=document.createElement("div");
