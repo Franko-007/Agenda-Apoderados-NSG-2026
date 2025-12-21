@@ -15,23 +15,38 @@
         #monthNav{ display:flex; justify-content:space-between; align-items:center; width:98%; max-width:1300px; margin-bottom:10px; }
         .calendar{ width:98%; max-width:1300px; margin:0 auto; }
         
-        /* Estilos de la cuadrícula */
+        /* Cuadrícula */
         .month-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
-        
-        /* CAMBIO SOLICITADO: Fondo azul y letras blancas para los nombres de los días */
         .day-name { font-weight: bold; background: #013b7a; color: white; padding: 10px 0; border-radius: 4px; font-size: 12px; text-transform: uppercase; }
         
         .day{ background:white; border-radius:6px; padding:4px; min-height:120px; box-shadow:0 1px 3px rgba(0,0,0,.15); position:relative; font-size:11px; cursor:pointer; }
         .day h3{ text-align:right; font-size:11px; margin:0; }
-        .event{ position:relative; margin-top:2px; font-size:10px; padding:2px 4px; border-radius:3px; color:white; overflow:hidden; cursor:pointer; text-align:left; }
+        
+        /* Estilos de Eventos y Asistencia */
+        .event{ position:relative; margin-top:2px; font-size:10px; padding:4px; border-radius:3px; color:white; overflow:hidden; cursor:pointer; text-align:left; border-left: 4px solid rgba(0,0,0,0.2); }
+        .event.asistio { background: #2e7d32 !important; border-left: 4px solid #1b5e20; }
+        .event.asistio::before { content: "✔ "; font-weight: bold; }
+        .event.no-asistio { background: #757575 !important; border-left: 4px solid #b71c1c; text-decoration: line-through; opacity: 0.8; }
+        .event.no-asistio::before { content: "✘ "; font-weight: bold; }
+
         .feriado{ background:#ffe5e5 !important; border:2px solid #d32f2f; }
         .feriado-label{ font-size:9px; color:#b71c1c; font-weight:bold; }
+        
         #legend{ margin-top:10px; display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
         .legend-item{ display:flex; align-items:center; gap:5px; font-size:12px; }
         .legend-color{ width:14px; height:14px; border-radius:3px; }
+        
         canvas{ margin-top:20px; background:white; border-radius:6px; padding:10px; max-width: 100%; }
-        dialog{ border:none; border-radius:8px; padding:20px; width: 300px; }
-        dialog input{ width:100%; margin-bottom:10px; padding:6px; box-sizing: border-box; }
+        
+        /* Modal */
+        dialog{ border:none; border-radius:8px; padding:20px; width: 320px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        dialog h3 { margin-top: 0; color: #013b7a; }
+        dialog label { display: block; text-align: left; font-size: 11px; margin-top: 10px; font-weight: bold; }
+        dialog input, dialog select{ width:100%; margin-bottom:5px; padding:8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .btn-group { margin-top: 15px; display: flex; flex-direction: column; gap: 5px; }
+        .btn-save { background: #013b7a; color: white; }
+        .btn-delete { background: #c62828; color: white; }
+        
         footer{ margin-top:20px; font-size:12px; padding-bottom: 20px;}
     </style>
 </head>
@@ -59,17 +74,31 @@
         <canvas id="chart" width="600" height="250"></canvas>
 
         <dialog id="dialog">
-            <h3>Gestionar cita</h3>
+            <h3>Gestionar Cita</h3>
             <input type="hidden" id="citaId">
+            
+            <label>Fecha y Hora:</label>
             <input type="date" id="fecha">
             <input type="time" id="hora" step="1800">
+            
+            <label>Información:</label>
             <input type="text" id="docente" placeholder="Docente">
             <input type="text" id="curso" placeholder="Curso">
             <input type="text" id="alumno" placeholder="Alumno">
             <input type="text" id="apoderado" placeholder="Apoderado">
-            <button onclick="guardar()">Guardar</button>
-            <button onclick="eliminar()">Eliminar</button>
-            <button onclick="closeDialog()">Cancelar</button>
+            
+            <label>Estado de Asistencia:</label>
+            <select id="estado">
+                <option value="Pendiente">Pendiente</option>
+                <option value="Asistió">Asistió ✅</option>
+                <option value="No Asistió">No Asistió ❌</option>
+            </select>
+
+            <div class="btn-group">
+                <button class="btn-save" onclick="guardar()">Guardar Cambios</button>
+                <button class="btn-delete" onclick="eliminar()">Eliminar Cita</button>
+                <button onclick="closeDialog()">Cancelar</button>
+            </div>
         </dialog>
     </main>
     <footer>
@@ -93,33 +122,23 @@
     const diasSemana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
     function calcularPascua(year){
-        const f=Math.floor;
-        const G=year%19;
-        const C=f(year/100);
+        const f=Math.floor; const G=year%19; const C=f(year/100);
         const H=(C-f(C/4)-f((8*C+13)/25)+19*G+15)%30;
         const I=H-f(H/28)*(1-f(29/(H+1))*f((21-G)/11));
         const J=(year+f(year/4)+I+2-C+f(C/4))%7;
-        const L=I-J;
-        const month=3+f((L+40)/44);
-        const day=L+28-31*f(month/4);
+        const L=I-J; const month=3+f((L+40)/44); const day=L+28-31*f(month/4);
         return new Date(year,month-1,day);
     }
 
     function feriadosChile(year){
         const pascua=calcularPascua(year);
         const feriados={
-            [`${year}-01-01`]:"Año Nuevo",
-            [`${year}-05-01`]:"Día del Trabajador",
-            [`${year}-05-21`]:"Glorias Navales",
-            [`${year}-07-16`]:"Virgen del Carmen",
-            [`${year}-08-15`]:"Asunción de la Virgen",
-            [`${year}-09-18`]:"Independencia Nacional",
-            [`${year}-09-19`]:"Glorias del Ejército",
-            [`${year}-10-12`]:"Encuentro de Dos Mundos",
-            [`${year}-10-31`]:"Iglesias Evangélicas",
-            [`${year}-11-01`]:"Todos los Santos",
-            [`${year}-12-08`]:"Inmaculada Concepción",
-            [`${year}-12-25`]:"Navidad",
+            [`${year}-01-01`]:"Año Nuevo", [`${year}-05-01`]:"Día del Trabajador",
+            [`${year}-05-21`]:"Glorias Navales", [`${year}-07-16`]:"Virgen del Carmen",
+            [`${year}-08-15`]:"Asunción de la Virgen", [`${year}-09-18`]:"Independencia",
+            [`${year}-09-19`]:"Glorias Ejército", [`${year}-10-12`]:"Encuentro Mundos",
+            [`${year}-10-31`]:"Iglesias Evangélicas", [`${year}-11-01`]:"Todos los Santos",
+            [`${year}-12-08`]:"Inmaculada Concepción", [`${year}-12-25`]:"Navidad",
             [new Date(pascua.getTime()-2*86400000).toISOString().slice(0,10)]:"Viernes Santo",
             [new Date(pascua.getTime()-1*86400000).toISOString().slice(0,10)]:"Sábado Santo"
         };
@@ -132,20 +151,15 @@
     }
 
     function initFilters(){
-        filterDocente.innerHTML='<option value="">Todos</option>';
+        filterDocente.innerHTML='<option value="">Todos los Docentes</option>';
         for(let i=0;i<12;i++) filterMes.innerHTML+=`<option value="${i}">${new Date(0,i).toLocaleString("es",{month:"long"})}</option>`;
         for(let y=currentDate.getFullYear()-1;y<=currentDate.getFullYear()+1;y++) filterYear.innerHTML+=`<option value="${y}">${y}</option>`;
         filterMes.value=currentDate.getMonth();
         filterYear.value=currentDate.getFullYear();
-        filterMes.onchange=syncDate;
-        filterYear.onchange=syncDate;
-        filterDocente.onchange=renderCalendar;
+        filterMes.onchange=syncDate; filterYear.onchange=syncDate; filterDocente.onchange=renderCalendar;
     }
 
-    function syncDate(){
-        currentDate=new Date(filterYear.value,filterMes.value,1);
-        renderCalendar();
-    }
+    function syncDate(){ currentDate=new Date(filterYear.value,filterMes.value,1); renderCalendar(); }
 
     async function cargarCitas(){
         try {
@@ -156,34 +170,24 @@
                 if(c.docente && !docenteColors[c.docente]) 
                     docenteColors[c.docente]=colors[Object.keys(docenteColors).length%colors.length];
             });
-            renderFiltroDocentes();
-            renderCalendar();
-            renderLegend();
-            renderChart();
-        } catch(e) { console.error("Error cargando citas:", e); }
+            renderFiltroDocentes(); renderCalendar(); renderLegend(); renderChart();
+        } catch(e) { console.error("Error:", e); }
     }
 
     function renderFiltroDocentes(){
         const sel=filterDocente.value;
-        filterDocente.innerHTML='<option value="">Todos</option>';
-        Object.keys(docenteColors).forEach(d=>{
-            filterDocente.innerHTML+=`<option value="${d}">${d}</option>`;
-        });
+        filterDocente.innerHTML='<option value="">Todos los Docentes</option>';
+        Object.keys(docenteColors).forEach(d=>{ filterDocente.innerHTML+=`<option value="${d}">${d}</option>`; });
         filterDocente.value=sel;
     }
 
     function prevMonth(){currentDate.setMonth(currentDate.getMonth()-1);syncUI();}
     function nextMonth(){currentDate.setMonth(currentDate.getMonth()+1);syncUI();}
-    function syncUI(){
-        filterMes.value=currentDate.getMonth();
-        filterYear.value=currentDate.getFullYear();
-        renderCalendar();
-    }
+    function syncUI(){ filterMes.value=currentDate.getMonth(); filterYear.value=currentDate.getFullYear(); renderCalendar(); }
 
     function renderCalendar(){
         calendar.innerHTML="";
-        const m=currentDate.getMonth();
-        const y=currentDate.getFullYear();
+        const m=currentDate.getMonth(); const y=currentDate.getFullYear();
         const feriados=feriadosChile(y);
         monthLabel.textContent=currentDate.toLocaleString("es",{month:"long",year:"numeric"});
         
@@ -191,10 +195,8 @@
         grid.className="month-grid";
 
         diasSemana.forEach(dia => {
-            const dayNameDiv = document.createElement("div");
-            dayNameDiv.className = "day-name";
-            dayNameDiv.textContent = dia;
-            grid.appendChild(dayNameDiv);
+            const dDiv = document.createElement("div"); dDiv.className = "day-name";
+            dDiv.textContent = dia; grid.appendChild(dDiv);
         });
 
         let first=(new Date(y,m,1).getDay()+6)%7;
@@ -212,12 +214,15 @@
                 cell.innerHTML+=`<div class="feriado-label">${feriados[dateStr]}</div>`;
             }
             citas.filter(c => {
-                let citaFecha = String(c.fecha);
-                if(citaFecha.includes("T")) citaFecha = citaFecha.split("T")[0];
-                return citaFecha === dateStr && (!filterDocente.value || c.docente === filterDocente.value);
+                let cf = String(c.fecha); if(cf.includes("T")) cf = cf.split("T")[0];
+                return cf === dateStr && (!filterDocente.value || c.docente === filterDocente.value);
             }).forEach(c=>{
                 const ev=document.createElement("div");
                 ev.className="event";
+                // Aplicar clase según estado
+                if(c.estado === "Asistió") ev.classList.add("asistio");
+                else if(c.estado === "No Asistió") ev.classList.add("no-asistio");
+                
                 ev.style.background=docenteColors[c.docente] || "#999";
                 ev.textContent=`${c.hora} - ${c.alumno}`;
                 ev.onclick=e=>{e.stopPropagation();openDialog(c.fecha,c.hora,c);};
@@ -236,6 +241,7 @@
         document.getElementById("curso").value=c?.curso||"";
         document.getElementById("alumno").value=c?.alumno||"";
         document.getElementById("apoderado").value=c?.apoderado||"";
+        document.getElementById("estado").value=c?.estado||"Pendiente";
         document.getElementById("dialog").showModal();
     }
 
@@ -250,19 +256,18 @@
             docente:document.getElementById("docente").value,
             curso:document.getElementById("curso").value,
             alumno:document.getElementById("alumno").value,
-            apoderado:document.getElementById("apoderado").value
+            apoderado:document.getElementById("apoderado").value,
+            estado:document.getElementById("estado").value
         });
         await fetch(SHEET_URL+"?"+params);
-        closeDialog();
-        cargarCitas();
+        closeDialog(); cargarCitas();
     }
 
     async function eliminar(){
         const id = document.getElementById("citaId").value;
         if(!id || !confirm("¿Eliminar cita?")) return;
         await fetch(`${SHEET_URL}?action=delete&id=${id}`);
-        closeDialog();
-        cargarCitas();
+        closeDialog(); cargarCitas();
     }
 
     function renderLegend(){
