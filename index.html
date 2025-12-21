@@ -14,7 +14,11 @@
         select, button{ padding:6px 12px; border-radius:4px; border:none; cursor:pointer; }
         #monthNav{ display:flex; justify-content:space-between; align-items:center; width:98%; max-width:1300px; margin-bottom:10px; }
         .calendar{ width:98%; max-width:1300px; margin:0 auto; }
+        
+        /* Estilos de la cuadrícula */
         .month-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+        .day-name { font-weight: bold; background: #eee; padding: 10px 0; border-radius: 4px; font-size: 12px; text-transform: uppercase; }
+        
         .day{ background:white; border-radius:6px; padding:4px; min-height:120px; box-shadow:0 1px 3px rgba(0,0,0,.15); position:relative; font-size:11px; cursor:pointer; }
         .day h3{ text-align:right; font-size:11px; margin:0; }
         .event{ position:relative; margin-top:2px; font-size:10px; padding:2px 4px; border-radius:3px; color:white; overflow:hidden; cursor:pointer; text-align:left; }
@@ -32,7 +36,7 @@
 <body>
     <header>
         <img src="logo.png" alt="Logo Institucional">
-        <h1>Atención de Apoderados<br>Liceo Bicentenario Nuestra Señora de Guadalupe</h1>
+        <h1>Atención de Apoderados 2026<br>Liceo Bicentenario Nuestra Señora de Guadalupe</h1>
     </header>
     <main>
         <div id="viewControls">
@@ -83,6 +87,9 @@
     const filterYear=document.getElementById("filterYear");
     const colors=["#1976d2","#388e3c","#f57c00","#7b1fa2","#c62828"];
     let docenteColors={};
+
+    // Días de la semana para la cabecera
+    const diasSemana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
     function calcularPascua(year){
         const f=Math.floor;
@@ -178,11 +185,24 @@
         const y=currentDate.getFullYear();
         const feriados=feriadosChile(y);
         monthLabel.textContent=currentDate.toLocaleString("es",{month:"long",year:"numeric"});
+        
         const grid=document.createElement("div");
         grid.className="month-grid";
+
+        // 1. Agregar cabecera de días (L-D)
+        diasSemana.forEach(dia => {
+            const dayNameDiv = document.createElement("div");
+            dayNameDiv.className = "day-name";
+            dayNameDiv.textContent = dia;
+            grid.appendChild(dayNameDiv);
+        });
+
+        // 2. Calcular espacios vacíos al inicio
         let first=(new Date(y,m,1).getDay()+6)%7;
         const days=new Date(y,m+1,0).getDate();
         for(let i=0;i<first;i++) grid.appendChild(document.createElement("div"));
+
+        // 3. Crear los días del mes
         for(let d=1;d<=days;d++){
             const dateStr=`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
             const cell=document.createElement("div");
@@ -194,7 +214,7 @@
                 cell.innerHTML+=`<div class="feriado-label">${feriados[dateStr]}</div>`;
             }
             citas.filter(c => {
-                let citaFecha = c.fecha;
+                let citaFecha = String(c.fecha);
                 if(citaFecha.includes("T")) citaFecha = citaFecha.split("T")[0];
                 return citaFecha === dateStr && (!filterDocente.value || c.docente === filterDocente.value);
             }).forEach(c=>{
