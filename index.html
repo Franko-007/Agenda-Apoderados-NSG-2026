@@ -14,39 +14,28 @@
         select, button{ padding:6px 12px; border-radius:4px; border:none; cursor:pointer; }
         #monthNav{ display:flex; justify-content:space-between; align-items:center; width:98%; max-width:1300px; margin-bottom:10px; }
         .calendar{ width:98%; max-width:1300px; margin:0 auto; }
-        
-        /* Cuadrícula */
         .month-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
         .day-name { font-weight: bold; background: #013b7a; color: white; padding: 10px 0; border-radius: 4px; font-size: 12px; text-transform: uppercase; }
-        
         .day{ background:white; border-radius:6px; padding:4px; min-height:120px; box-shadow:0 1px 3px rgba(0,0,0,.15); position:relative; font-size:11px; cursor:pointer; }
         .day h3{ text-align:right; font-size:11px; margin:0; }
-        
-        /* Estilos de Eventos y Asistencia */
         .event{ position:relative; margin-top:2px; font-size:10px; padding:4px; border-radius:3px; color:white; overflow:hidden; cursor:pointer; text-align:left; border-left: 4px solid rgba(0,0,0,0.2); }
         .event.asistio { background: #2e7d32 !important; border-left: 4px solid #1b5e20; }
         .event.asistio::before { content: "✔ "; font-weight: bold; }
         .event.no-asistio { background: #757575 !important; border-left: 4px solid #b71c1c; text-decoration: line-through; opacity: 0.8; }
         .event.no-asistio::before { content: "✘ "; font-weight: bold; }
-
         .feriado{ background:#ffe5e5 !important; border:2px solid #d32f2f; }
         .feriado-label{ font-size:9px; color:#b71c1c; font-weight:bold; }
-        
         #legend{ margin-top:10px; display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
         .legend-item{ display:flex; align-items:center; gap:5px; font-size:12px; }
         .legend-color{ width:14px; height:14px; border-radius:3px; }
-        
         canvas{ margin-top:20px; background:white; border-radius:6px; padding:10px; max-width: 100%; }
-        
-        /* Modal */
         dialog{ border:none; border-radius:8px; padding:20px; width: 320px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
         dialog h3 { margin-top: 0; color: #013b7a; }
         dialog label { display: block; text-align: left; font-size: 11px; margin-top: 10px; font-weight: bold; }
         dialog input, dialog select{ width:100%; margin-bottom:5px; padding:8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         .btn-group { margin-top: 15px; display: flex; flex-direction: column; gap: 5px; }
-        .btn-save { background: #013b7a; color: white; }
-        .btn-delete { background: #c62828; color: white; }
-        
+        .btn-save { background: #013b7a; color: white; cursor: pointer; }
+        .btn-delete { background: #c62828; color: white; cursor: pointer; }
         footer{ margin-top:20px; font-size:12px; padding-bottom: 20px;}
     </style>
 </head>
@@ -76,38 +65,32 @@
         <dialog id="dialog">
             <h3>Gestionar Cita</h3>
             <input type="hidden" id="citaId">
-            
             <label>Fecha y Hora:</label>
             <input type="date" id="fecha">
             <input type="time" id="hora" step="1800">
-            
             <label>Información:</label>
             <input type="text" id="docente" placeholder="Docente">
             <input type="text" id="curso" placeholder="Curso">
             <input type="text" id="alumno" placeholder="Alumno">
             <input type="text" id="apoderado" placeholder="Apoderado">
-            
             <label>Estado de Asistencia:</label>
             <select id="estado">
                 <option value="Pendiente">Pendiente</option>
                 <option value="Asistió">Asistió ✅</option>
                 <option value="No Asistió">No Asistió ❌</option>
             </select>
-
             <div class="btn-group">
-                <button class="btn-save" onclick="guardar()">Guardar Cambios</button>
+                <button id="btnGuardar" class="btn-save" onclick="guardar()">Guardar Cambios</button>
                 <button class="btn-delete" onclick="eliminar()">Eliminar Cita</button>
                 <button onclick="closeDialog()">Cancelar</button>
             </div>
         </dialog>
     </main>
-    <footer>
-        Todos los derechos reservados – NSG | Por Franco.
-    </footer>
+    <footer>Todos los derechos reservados – NSG | Por Franco.</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const SHEET_URL="https://script.google.com/macros/s/AKfycby8v4BLw6v1GBwzWfm6x32cXi42Zo6VNZx3CRxVr6VWJIm97UdjuYGEAHqD8EnsL1sG/exec";
+    const SHEET_URL="https://script.google.com/macros/s/AKfycbyHN0WEOwyqxcfdo-_hM3rsagLxwkM2_ftjwUW_aaZTkOL5UC106NNkLKaPv45EGZqJ/exec";
     let citas=[];
     let currentDate=new Date();
     const calendar=document.getElementById("calendar");
@@ -118,7 +101,6 @@
     const filterYear=document.getElementById("filterYear");
     const colors=["#1976d2","#388e3c","#f57c00","#7b1fa2","#c62828"];
     let docenteColors={};
-
     const diasSemana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
     function calcularPascua(year){
@@ -164,7 +146,8 @@
     async function cargarCitas(){
         try {
             const r=await fetch(SHEET_URL+"?action=get");
-            citas=await r.json();
+            const res=await r.json();
+            citas=res.datos || [];
             docenteColors={};
             citas.forEach(c=>{
                 if(c.docente && !docenteColors[c.docente]) 
@@ -190,19 +173,15 @@
         const m=currentDate.getMonth(); const y=currentDate.getFullYear();
         const feriados=feriadosChile(y);
         monthLabel.textContent=currentDate.toLocaleString("es",{month:"long",year:"numeric"});
-        
         const grid=document.createElement("div");
         grid.className="month-grid";
-
         diasSemana.forEach(dia => {
             const dDiv = document.createElement("div"); dDiv.className = "day-name";
             dDiv.textContent = dia; grid.appendChild(dDiv);
         });
-
         let first=(new Date(y,m,1).getDay()+6)%7;
         const days=new Date(y,m+1,0).getDate();
         for(let i=0;i<first;i++) grid.appendChild(document.createElement("div"));
-
         for(let d=1;d<=days;d++){
             const dateStr=`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
             const cell=document.createElement("div");
@@ -219,10 +198,8 @@
             }).forEach(c=>{
                 const ev=document.createElement("div");
                 ev.className="event";
-                // Aplicar clase según estado
                 if(c.estado === "Asistió") ev.classList.add("asistio");
                 else if(c.estado === "No Asistió") ev.classList.add("no-asistio");
-                
                 ev.style.background=docenteColors[c.docente] || "#999";
                 ev.textContent=`${c.hora} - ${c.alumno}`;
                 ev.onclick=e=>{e.stopPropagation();openDialog(c.fecha,c.hora,c);};
@@ -248,6 +225,10 @@
     function closeDialog(){document.getElementById("dialog").close();}
 
     async function guardar(){
+        const btn = document.getElementById("btnGuardar");
+        btn.disabled = true;
+        btn.textContent = "Guardando...";
+        
         const params=new URLSearchParams({
             action:document.getElementById("citaId").value?"edit":"add",
             id:document.getElementById("citaId").value,
@@ -259,15 +240,29 @@
             apoderado:document.getElementById("apoderado").value,
             estado:document.getElementById("estado").value
         });
-        await fetch(SHEET_URL+"?"+params);
-        closeDialog(); cargarCitas();
+        
+        try {
+            await fetch(SHEET_URL+"?"+params, { mode: 'no-cors' });
+            // Debido a mode: 'no-cors', no podemos leer la respuesta, pero el envío se hace.
+            // Esperamos un segundo para dar tiempo al servidor y refrescamos.
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.textContent = "Guardar Cambios";
+                closeDialog(); 
+                cargarCitas();
+            }, 1500);
+        } catch(e) {
+            console.error(e);
+            btn.disabled = false;
+            btn.textContent = "Guardar Cambios";
+        }
     }
 
     async function eliminar(){
+        if(!confirm("¿Eliminar cita?")) return;
         const id = document.getElementById("citaId").value;
-        if(!id || !confirm("¿Eliminar cita?")) return;
-        await fetch(`${SHEET_URL}?action=delete&id=${id}`);
-        closeDialog(); cargarCitas();
+        await fetch(`${SHEET_URL}?action=delete&id=${id}`, { mode: 'no-cors' });
+        setTimeout(() => { cargarCitas(); closeDialog(); }, 1000);
     }
 
     function renderLegend(){
