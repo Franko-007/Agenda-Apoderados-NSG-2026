@@ -5,6 +5,303 @@
 <title>Agenda Apoderados – Liceo Bicentenario NSG</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
+body{font-family:Arial,sans-serif;margin:0;background:#f4f6f8;text-align:center;}
+header{
+  background:#033669; /* Azul brillante */
+  color:white;
+  padding:15px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+}
+header img{height:50px;}
+header h1{font-size:20px;margin:0;}
+main{padding:20px;text-align:center;display:flex;flex-direction:column;align-items:center;}
+#viewControls{margin-bottom:15px;display:flex;flex-wrap:wrap;gap:5px;justify-content:center;align-items:center;}
+select, button{padding:6px 12px;color:#024461;border-radius:4px;border:none;cursor:pointer;}
+#monthNav{display:flex;justify-content:space-between;margin-bottom:10px;align-items:center;width:95%;max-width:1200px;}
+.calendar{margin:0 auto;width:98%;max-width:1200px;}
+.month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;width:100%;}
+.day{background:white;border-radius:6px;padding:3px;min-height:180px;box-shadow:0 1px 3px rgba(0,0,0,.1);position:relative;font-size:10px;cursor:pointer;}
+.day h3{text-align:right;font-size:10px;margin:0;}
+.event{position:absolute;font-size:9px;padding:1px 3px;border-radius:3px;color:white;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+#legend{margin-top:10px;display:flex;flex-wrap:wrap;gap:10px;justify-content:center;}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:12px;}
+.legend-color{width:15px;height:15px;border-radius:3px;}
+canvas{margin-top:20px;background:white;border-radius:6px;padding:10px;}
+dialog{border:none;border-radius:8px;padding:20px;}
+dialog input,dialog select{width:100%;margin-bottom:10px;padding:6px;}
+dialog button{margin-right:5px;}
+@media(max-width:768px){.calendar{grid-template-columns:1fr !important;}}
+</style>
+</head>
+<body>
+<header>
+<img src="logo.png" alt="Logo Institucional">
+<h1>Atención de Apoderados 2026<br>Liceo Bicentenario Nuestra Señora de Guadalupe</h1>
+</header>
+
+<main>
+<div id="viewControls">
+<label>Docente:</label>
+<select id="filterDocente" onchange="renderCalendar()"><option value="">Todos</option></select>
+<label>Mes:</label>
+<select id="filterMes" onchange="renderCalendar()"></select>
+<label>Año:</label>
+<select id="filterYear" onchange="renderCalendar()"></select>
+</div>
+
+<div id="monthNav">
+<button onclick="prevMonth()">« Anterior</button>
+<div id="monthLabel"></div>
+<button onclick="nextMonth()">Siguiente »</button>
+</div>
+
+<div id="calendar" class="calendar"></div>
+<div id="legend"></div>
+<canvas id="chart" width="400" height="200"></canvas>
+
+<dialog id="dialog">
+<h3>Gestionar cita</h3>
+<input type="hidden" id="citaId"/>
+<input type="date" id="fecha"/>
+<input type="time" id="hora"/>
+<input type="text" id="docente" placeholder="Docente"/>
+<input type="text" id="curso" placeholder="Curso"/>
+<input type="text" id="alumno" placeholder="Nombre del Alumno"/>
+<input type="text" id="apoderado" placeholder="Nombre del Apoderado"/>
+<button onclick="guardar()">Guardar</button>
+<button onclick="eliminar()">Eliminar</button>
+<button onclick="closeDialog()">Cancelar</button>
+</dialog>
+</main>
+
+<footer>
+Todos los derechos reservados – NSG 2026 | Por Franco.
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// CONFIG GOOGLE SHEETS
+const SHEET_URL = "https://script.google.com/macros/s/AKfycby6YisLVdrmltjB8Bn6g6sTFetq1enRYAXlioWtfdMTeZlX9IGRmdPAjBc7kMaVnVl8/exec";
+
+let citas = [];
+let currentDate = new Date();
+const calendar = document.getElementById('calendar');
+const legendDiv = document.getElementById('legend');
+const monthLabel = document.getElementById('monthLabel');
+const colors = ["#4caf50","#ff9800","#2196f3","#9c27b0","#f44336","#3f51b5","#00bcd4","#e91e63","#ff5722"];
+let docenteColors = {};
+
+const filterDocente = document.getElementById('filterDocente');
+const filterMes = document.getElementById('filterMes');
+const filterYear = document.getElementById('filterYear');
+
+// FILTROS
+function initFilters(){
+  filterMes.innerHTML='';
+  for(let i=0;i<12;i++){
+    const opt = document.createElement('option');
+    opt.value=i;
+    opt.textContent=new Date(0,i).toLocaleDateString('es-CL',{month:'long'});
+    filterMes.appendChild(opt);
+  }
+  const currentYear = new Date().getFullYear();
+  filterYear.innerHTML='';
+  for(let y=currentYear-5;y<=currentYear+5;y++){
+    const opt = document.createElement('option');
+    opt.value=y;
+    opt.textContent=y;
+    filterYear.appendChild(opt);
+  }
+  filterMes.value=currentDate.getMonth();
+  filterYear.value=currentDate.getFullYear();
+}
+
+// FUNCIONES
+function getColor(docente){
+  if(docenteColors[docente]) return docenteColors[docente];
+  const color = colors[Object.keys(docenteColors).length % colors.length];
+  docenteColors[docente] = color;
+  return color;
+}
+
+function renderLegend(){
+  legendDiv.innerHTML = '';
+  Object.keys(docenteColors).forEach(d=>{
+    const item = document.createElement('div');
+    item.className='legend-item';
+    item.innerHTML = `<div class="legend-color" style="background:${docenteColors[d]}"></div>${d}`;
+    legendDiv.appendChild(item);
+  });
+}
+
+async function cargarCitas(){
+  try {
+    const response = await fetch(`${SHEET_URL}?action=get`);
+    citas = await response.json();
+    docenteColors={};
+    citas.forEach(c=>getColor(c.docente));
+    renderFiltersDocente();
+    renderCalendar();
+    renderLegend();
+    renderChart();
+  } catch(e){ console.error(e); alert("No se pudieron cargar las citas."); }
+}
+
+function renderFiltersDocente(){
+  const selected = filterDocente.value;
+  filterDocente.innerHTML='<option value="">Todos</option>';
+  Object.keys(docenteColors).forEach(d=>{
+    const opt=document.createElement('option');
+    opt.value=d; opt.textContent=d; filterDocente.appendChild(opt);
+  });
+  filterDocente.value=selected;
+}
+
+// NAV
+function prevMonth(){ currentDate.setMonth(currentDate.getMonth()-1); filterMes.value=currentDate.getMonth(); filterYear.value=currentDate.getFullYear(); renderCalendar();}
+function nextMonth(){ currentDate.setMonth(currentDate.getMonth()+1); filterMes.value=currentDate.getMonth(); filterYear.value=currentDate.getFullYear(); renderCalendar();}
+
+// DIALOG
+function openDialog(fecha,hora='08:00',cita=null){
+  if(cita){
+    document.getElementById('citaId').value=cita.id||'';
+    document.getElementById('fecha').value=cita.fecha;
+    document.getElementById('hora').value=cita.hora;
+    document.getElementById('docente').value=cita.docente;
+    document.getElementById('curso').value=cita.curso;
+    document.getElementById('alumno').value=cita.alumno;
+    document.getElementById('apoderado').value=cita.apoderado;
+  } else {
+    document.getElementById('citaId').value='';
+    document.getElementById('fecha').value=fecha;
+    document.getElementById('hora').value=hora;
+    document.getElementById('docente').value='';
+    document.getElementById('curso').value='';
+    document.getElementById('alumno').value='';
+    document.getElementById('apoderado').value='';
+  }
+  document.getElementById('dialog').showModal();
+}
+function closeDialog(){ document.getElementById('dialog').close(); }
+
+async function guardar(){
+  const id=document.getElementById('citaId').value;
+  const fecha = document.getElementById('fecha').value;
+  const hora = document.getElementById('hora').value;
+  const docente = document.getElementById('docente').value.trim();
+  const curso = document.getElementById('curso').value.trim();
+  const alumno = document.getElementById('alumno').value.trim();
+  const apoderado = document.getElementById('apoderado').value.trim();
+  if(!fecha||!hora||!docente||!curso||!alumno||!apoderado){
+    alert("Por favor, completa todos los campos.");
+    return;
+  }
+  try{
+    const action = id ? 'edit' : 'add';
+    const url = `${SHEET_URL}?action=${action}&id=${id}&fecha=${fecha}&hora=${hora}&docente=${docente}&curso=${curso}&alumno=${alumno}&apoderado=${apoderado}&estado=Ocupado`;
+    const resp = await fetch(url);
+    const text = await resp.text();
+    if(text==="ok"){ closeDialog(); cargarCitas(); }
+    else alert("Error guardando la cita: "+text);
+  } catch(e){ console.error(e); alert("No se pudo conectar con Google Sheets."); }
+}
+
+async function eliminar(){
+  const id=document.getElementById('citaId').value;
+  if(!id) return;
+  if(!confirm("¿Seguro que deseas eliminar esta cita?")) return;
+  try{
+    const resp = await fetch(`${SHEET_URL}?action=delete&id=${id}`);
+    const text = await resp.text();
+    if(text==="ok"){ closeDialog(); cargarCitas(); }
+    else alert("Error eliminando la cita: "+text);
+  } catch(e){ console.error(e); alert("No se pudo conectar con Google Sheets."); }
+}
+
+// RENDER CALENDAR
+function renderCalendar(){
+  calendar.innerHTML='';
+  const mes=parseInt(filterMes.value);
+  const year=parseInt(filterYear.value);
+  const firstDay = new Date(year,mes,1).getDay();
+  const daysInMonth = new Date(year,mes+1,0).getDate();
+  monthLabel.textContent = new Date(year,mes).toLocaleDateString('es-CL',{month:'long',year:'numeric'});
+
+  const monthGrid=document.createElement('div');
+  monthGrid.className='month-grid';
+
+  for(let i=0;i<firstDay;i++) monthGrid.appendChild(document.createElement('div'));
+
+  for(let d=1;d<=daysInMonth;d++){
+    const dayDiv=document.createElement('div');
+    dayDiv.className='day';
+    dayDiv.dataset.date=`${year}-${('0'+(mes+1)).slice(-2)}-${('0'+d).slice(-2)}`;
+    dayDiv.innerHTML=`<h3>${d}</h3>`;
+    
+    const dayCitas = citas.filter(c=>{
+      const date=new Date(c.fecha);
+      return date.getFullYear()===year && date.getMonth()===mes && date.getDate()===d
+             && (filterDocente.value==="" || c.docente===filterDocente.value);
+    });
+
+    const blockHeight = 20;
+    dayCitas.forEach(c=>{
+      const [h,m] = c.hora.split(':').map(Number);
+      const topPos = ((h-8)*2 + m/30)*blockHeight;
+      const ev=document.createElement('div');
+      ev.className='event';
+      ev.style.backgroundColor=getColor(c.docente);
+      ev.style.top=topPos+'px';
+      ev.style.position='absolute';
+      ev.style.width='calc(100% - 4px)';
+      ev.textContent=`${c.hora} - ${c.alumno}`;
+      ev.title=`Alumno: ${c.alumno}\nApoderado: ${c.apoderado}\nCurso: ${c.curso}\nDocente: ${c.docente}`;
+      ev.onclick=(e)=>{ e.stopPropagation(); openDialog(c.fecha,c.hora,c); };
+      dayDiv.appendChild(ev);
+    });
+
+    dayDiv.onclick=()=>openDialog(dayDiv.dataset.date);
+    monthGrid.appendChild(dayDiv);
+  }
+  calendar.appendChild(monthGrid);
+  renderChart();
+}
+
+// GRÁFICO BARRAS
+function renderChart(){
+  const docentes = Object.keys(docenteColors);
+  const dataCount = docentes.map(d=>citas.filter(c=>{
+    if(filterDocente.value!=="" && c.docente!==filterDocente.value) return false;
+    const date = new Date(c.fecha);
+    if(date.getMonth()!==parseInt(filterMes.value) || date.getFullYear()!==parseInt(filterYear.value)) return false;
+    return c.docente===d;
+  }).length);
+  const ctx = document.getElementById('chart').getContext('2d');
+  if(window.barChart) window.barChart.destroy();
+  window.barChart=new Chart(ctx,{
+    type:'bar',
+    data:{labels:docentes,datasets:[{label:'Citas por Docente',data:dataCount,backgroundColor:docentes.map(d=>getColor(d))}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,precision:0}}}
+  });
+}
+
+// INICIAL
+initFilters();
+cargarCitas();
+setInterval(cargarCitas,10000);
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Agenda Apoderados – Liceo Bicentenario NSG</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
 body{font-family:Arial,sans-serif;margin:0;background:#f4f6f8;}
 header{background:#0b4f6c;color:white;padding:15px;display:flex;align-items:center;gap:15px;flex-wrap:wrap;}
 header img{height:50px;}
