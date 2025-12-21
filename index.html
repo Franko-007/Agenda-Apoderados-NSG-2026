@@ -90,7 +90,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const SHEET_URL="https://script.google.com/macros/s/AKfycbyHN0WEOwyqxcfdo-_hM3rsagLxwkM2_ftjwUW_aaZTkOL5UC106NNkLKaPv45EGZqJ/exec";
+    const SHEET_URL="https://script.google.com/macros/s/AKfycbwTVXOjI9FZALroFF3XchBgzuQcCf7LYJhdtOr1QOo1a7FXIeNQTjs9FkssJYSw9IfC/exec";
     let citas=[];
     let currentDate=new Date();
     const calendar=document.getElementById("calendar");
@@ -201,7 +201,16 @@
                 if(c.estado === "Asistió") ev.classList.add("asistio");
                 else if(c.estado === "No Asistió") ev.classList.add("no-asistio");
                 ev.style.background=docenteColors[c.docente] || "#999";
-                ev.textContent=`${c.hora} - ${c.alumno}`;
+                
+                // LÓGICA DE LIMPIEZA DE HORA PARA EVITAR EL CÓDIGO 1899
+                let horaTxt = String(c.hora);
+                if(horaTxt.includes("T")) {
+                    horaTxt = horaTxt.split("T")[1].substring(0,5);
+                } else if(horaTxt.length > 5) {
+                    horaTxt = horaTxt.substring(0,5);
+                }
+
+                ev.textContent=`${horaTxt} - ${c.alumno}`;
                 ev.onclick=e=>{e.stopPropagation();openDialog(c.fecha,c.hora,c);};
                 cell.appendChild(ev);
             });
@@ -213,7 +222,12 @@
     function openDialog(f,h="08:00",c=null){
         document.getElementById("citaId").value=c?.id||"";
         document.getElementById("fecha").value=f.includes("T") ? f.split("T")[0] : f;
-        document.getElementById("hora").value=h;
+        
+        // Limpiamos la hora para el input del modal
+        let horaInput = String(h);
+        if(horaInput.includes("T")) horaInput = horaInput.split("T")[1].substring(0,5);
+        document.getElementById("hora").value=horaInput;
+        
         document.getElementById("docente").value=c?.docente||"";
         document.getElementById("curso").value=c?.curso||"";
         document.getElementById("alumno").value=c?.alumno||"";
@@ -243,8 +257,6 @@
         
         try {
             await fetch(SHEET_URL+"?"+params, { mode: 'no-cors' });
-            // Debido a mode: 'no-cors', no podemos leer la respuesta, pero el envío se hace.
-            // Esperamos un segundo para dar tiempo al servidor y refrescamos.
             setTimeout(() => {
                 btn.disabled = false;
                 btn.textContent = "Guardar Cambios";
