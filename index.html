@@ -81,7 +81,11 @@
             <input type="time" id="hora" step="1800">
             
             <label>Nombre del Docente:</label>
-            <input type="text" id="docente" placeholder="Ej: Peter V">
+            <input type="text" id="docente" list="listaDocentes" placeholder="Escribe o selecciona..." onchange="autocompletarEmail()">
+            <datalist id="listaDocentes"></datalist>
+            
+            <label>Email Docente (Se llena automático si está en la lista):</label>
+            <input type="email" id="emailDocente" placeholder="docente@establecimiento.cl">
             
             <label>Curso:</label>
             <input type="text" id="curso" placeholder="Ej: 1°m A">
@@ -110,7 +114,18 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const SHEET_URL="https://script.google.com/macros/s/AKfycbwTVXOjI9FZALroFF3XchBgzuQcCf7LYJhdtOr1QOo1a7FXIeNQTjs9FkssJYSw9IfC/exec";
+    // ======================================================
+    // CONFIGURACIÓN DE DOCENTES FRECUENTES (EDITAR AQUÍ)
+    // ======================================================
+    const DOCENTES_FRECUENTES = {
+        "Peter V": "peter.v@liceonsg.cl",
+        "Juan Perez": "juan.perez@liceonsg.cl",
+        "Maria Silva": "maria.silva@liceonsg.cl",
+        "Carlos Gomez": "carlos.gomez@liceonsg.cl",
+        // Agrega más docentes aquí siguiendo el formato "Nombre": "Email",
+    };
+
+    const SHEET_URL="https://script.google.com/macros/s/AKfycbyet2jlP_M4oBdnPz7GW56tpeN4IGqwjDsROL08W3uYZSrqnbNHkqDoTrESqLQPbM2Y/exec";
     let citas=[];
     let currentDate=new Date();
     const calendar=document.getElementById("calendar");
@@ -122,6 +137,28 @@
     const colors=["#1976d2","#388e3c","#f57c00","#7b1fa2","#c62828"];
     let docenteColors={};
     const diasSemana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+    // --- Función para inicializar la lista desplegable ---
+    function initDocentesFrecuentes() {
+        const datalist = document.getElementById("listaDocentes");
+        datalist.innerHTML = ""; // Limpiar
+        Object.keys(DOCENTES_FRECUENTES).forEach(nombre => {
+            const option = document.createElement("option");
+            option.value = nombre;
+            datalist.appendChild(option);
+        });
+    }
+
+    // --- Función para autocompletar el email ---
+    function autocompletarEmail() {
+        const nombreInput = document.getElementById("docente").value;
+        const emailInput = document.getElementById("emailDocente");
+        
+        // Si el nombre existe en nuestra lista, ponemos el mail
+        if (DOCENTES_FRECUENTES[nombreInput]) {
+            emailInput.value = DOCENTES_FRECUENTES[nombreInput];
+        }
+    }
 
     function calcularPascua(year){
         const f=Math.floor; const G=year%19; const C=f(year/100);
@@ -244,12 +281,19 @@
         let horaInput = String(h);
         if(horaInput.includes("T")) horaInput = horaInput.split("T")[1].substring(0,5);
         document.getElementById("hora").value=horaInput;
+        
+        // Cargar datos
         document.getElementById("docente").value=c?.docente||"";
+        document.getElementById("emailDocente").value=c?.emailDocente||""; // Cargar email si viene del sheet
+        
         document.getElementById("curso").value=c?.curso||"";
         document.getElementById("alumno").value=c?.alumno||"";
         document.getElementById("apoderado").value=c?.apoderado||"";
         document.getElementById("estado").value=c?.estado||"Pendiente";
         document.getElementById("dialog").showModal();
+        
+        // Intentar autocompletar si es una cita nueva y ya escribí algo (raro) o si edito y quiero corregir
+        autocompletarEmail();
     }
 
     function closeDialog(){document.getElementById("dialog").close();}
@@ -258,12 +302,14 @@
         const btn = document.getElementById("btnGuardar");
         btn.disabled = true;
         btn.textContent = "Guardando...";
+        
         const params=new URLSearchParams({
             action:document.getElementById("citaId").value?"edit":"add",
             id:document.getElementById("citaId").value,
             fecha:document.getElementById("fecha").value,
             hora:document.getElementById("hora").value,
             docente:document.getElementById("docente").value,
+            emailDocente:document.getElementById("emailDocente").value, // Se envía el email
             curso:document.getElementById("curso").value,
             alumno:document.getElementById("alumno").value,
             apoderado:document.getElementById("apoderado").value,
@@ -318,7 +364,9 @@
         });
     }
 
+    // Inicializamos todo
     initFilters();
+    initDocentesFrecuentes(); // Carga la lista desplegable
     cargarCitas();
 </script>
 </body>
